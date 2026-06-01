@@ -2,27 +2,39 @@ package br.com.itau.geradornotafiscal.service.integracoes;
 
 import br.com.itau.geradornotafiscal.model.NotaFiscal;
 import br.com.itau.geradornotafiscal.port.out.EntregaIntegrationPort;
+import io.github.resilience4j.retry.annotation.Retry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EntregaService {
 
-    @Async
-    public void agendarEntrega(NotaFiscal notaFiscal) {
+    private static final Logger log = LoggerFactory.getLogger(EntregaService.class);
+    private static final String RETRY_INSTANCE = "integracoesPosVenda";
 
+    @Async
+    @Retry(name = RETRY_INSTANCE, fallbackMethod = "fallbackEntrega")
+    public void agendarEntrega(NotaFiscal notaFiscal) {
         try {
-            //Simula o agendamento da entrega
             Thread.sleep(150);
             new EntregaIntegrationPort().criarAgendamentoEntrega(notaFiscal);
-            System.out.println("Agendamento de entrega por: " + Thread.currentThread());
-        } catch (Exception e) {
-            this.enviarParaFilaDeReprocessamento("fila-estoque-retry", notaFiscal, e);
+            System.out.println("Agendamento de entrega por: " + Thread.currentThread().getName());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
 
-    private void enviarParaFilaDeReprocessamento(String nomeFila, NotaFiscal notaFiscal, Exception erro) {
-        System.out.println("[SQS PREPARADO] Salvando NF " + notaFiscal.getIdNotaFiscal() + " na fila [" + nomeFila + "] para reprocessamento futuro.");
+    public void fallbackEntrega(NotaFiscal notaFiscal, Exception ex) {
+        log.error("[FALLBACK ENTREGA] - Esgotadas todas as tentativas de retry para a NF: {}. Motivo original: {}",
+                notaFiscal.getIdNotaFiscal(), ex.getMessage());
+        enviarParaFilaDeContingencia("fila-entrega-dlq", notaFiscal, ex);
+    }
+
+    private void enviarParaFilaDeContingencia(String nomeFila, NotaFiscal notaFiscal, Exception erro) {
+        log.info("[SQS CONTINGÊNCIA] Salvando NF {} na fila [{}] para processamento assíncrono tardio.",
+                notaFiscal.getIdNotaFiscal(), nomeFila);
     }
 }

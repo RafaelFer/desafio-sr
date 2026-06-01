@@ -3,7 +3,9 @@ package br.com.itau.geradornotafiscal.service;
 import java.math.BigDecimal;
 import java.util.List;
 
+import br.com.itau.geradornotafiscal.event.NotaFiscalGeradaEvent;
 import br.com.itau.geradornotafiscal.service.strategy.AliquotaStrategy;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import br.com.itau.geradornotafiscal.model.*;
 import br.com.itau.geradornotafiscal.service.strategy.AliquotaStrategyFactory;
@@ -14,21 +16,14 @@ public class GeradorNotaFiscalService {
 
 	private final AliquotaStrategyFactory strategyFactory;
 	private final CarregarDadosNotaFiscalService emitirNotaFiscalService;
-	private final EstoqueService estoqueService;
-	private final RegistroService registroService;
-	private final EntregaService entregaService;
-	private final FinanceiroService financeiroService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public GeradorNotaFiscalService(AliquotaStrategyFactory strategyFactory,
 	                                CarregarDadosNotaFiscalService emitirNotaFiscalService,
-	                                EstoqueService estoqueService, RegistroService registroService,
-	                                EntregaService entregaService, FinanceiroService financeiroService) {
+	                                ApplicationEventPublisher eventPublisher) {
 		this.strategyFactory = strategyFactory;
 		this.emitirNotaFiscalService = emitirNotaFiscalService;
-		this.estoqueService = estoqueService;
-		this.registroService = registroService;
-		this.entregaService = entregaService;
-		this.financeiroService = financeiroService;
+		this.eventPublisher = eventPublisher;
 	}
 
 	public NotaFiscal gerarNotaFiscal(Pedido pedido) {
@@ -42,11 +37,7 @@ public class GeradorNotaFiscalService {
 
 		NotaFiscal notaFiscal = emitirNotaFiscalService.emitirNotaFiscal(pedido, valorFreteComPercentual, itemNotaFiscalList);
 
-		estoqueService.enviarNotaFiscalParaBaixaEstoque(notaFiscal);
-		registroService.registrarNotaFiscal(notaFiscal);
-		entregaService.agendarEntrega(notaFiscal);
-		financeiroService.enviarNotaFiscalParaContasReceber(notaFiscal);
-
+		eventPublisher.publishEvent(new NotaFiscalGeradaEvent(notaFiscal));
 		return notaFiscal;
 	}
 

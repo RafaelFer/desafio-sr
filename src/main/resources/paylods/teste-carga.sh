@@ -6,23 +6,45 @@ LOG_FILE="curl_results.log"
 
 > "$LOG_FILE"
 
-# Defina aqui quantas requisições totais você quer (ex: 50 ou 100)
-TOTAL_REQUISICOES=500
-CONCORRENCIA=10 # Quantas chamadas batem ao mesmo tempo
+TPS_ALVO=20
+DURACAO_SEGUNDOS=25 # 25 segundos a 20 TPS vai dar as suas 500 requisições totais
+
+TOTAL_REQUISICOES=$((TPS_ALVO * DURACAO_SEGUNDOS))
 
 echo "----------------------------------------"
-echo "  Disparando $TOTAL_REQUISICOES requisições controladas..."
-echo "  Concorrência: $CONCORRENCIA chamadas simultâneas"
+echo "  Iniciando Teste de Carga Constante..."
+echo "  Alvo: $TPS_ALVO TPS (Requisições por segundo)"
+echo "  Duração: $DURACAO_SEGUNDOS segundos"
+echo "  Total planejado: $TOTAL_REQUISICOES requisições"
 echo "----------------------------------------"
 
 START_TIME=$(date +%s%3N)
 
-# O xargs vai gerenciar o fluxo perfeitamente sem deixar o terminal se perder
-seq $TOTAL_REQUISICOES | xargs -I {} -P $CONCORRENCIA curl -s -X POST "$URL" \
-    -H "Content-Type: application/json" \
-    -H "User-Agent: insomnia/12.6.0" \
-    -d "$PAYLOAD" \
-    -o /dev/null -w "%{http_code} " >> "$LOG_FILE"
+for ((sec=1; sec<=DURACAO_SEGUNDOS; sec++)); do
+    LOOP_START=$(date +%s%3N)
+
+    # Dispara exatamente 20 requisições em background (assíncronas) neste segundo
+    for ((req=1; req<=TPS_ALVO; req++)); do
+        curl -s -X POST "$URL" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: insomnia/12.6.0" \
+            -d "$PAYLOAD" \
+            -o /dev/null -w "%{http_code} " >> "$LOG_FILE" &
+    done
+
+    # Sincroniza o tempo para garantir que o próximo lote só saia quando completar 1 segundo
+    LOOP_END=$(date +%s%3N)
+    ELAPSED=$((LOOP_END - LOOP_START))
+    SLEEP_TIME=$((1000 - ELAPSED))
+
+    if [ $SLEEP_TIME -gt 0 ]; then
+        # Converte milissegundos para segundos para o comando sleep do bash
+        sleep $(awk "BEGIN {print $SLEEP_TIME/1000}")
+    fi
+done
+
+# Aguarda os últimos curls em background terminarem de responder antes de calcular o resultado
+wait
 
 END_TIME=$(date +%s%3N)
 DURATION=$((END_TIME - START_TIME))
@@ -47,6 +69,6 @@ echo "Erros do Servidor (500): $TOTAL_500"
 echo "Bad Requests (400):     $TOTAL_400"
 echo "Falhas de Conexão (000): $TOTAL_000"
 echo "----------------------------------------"
-echo "Tempo total: $DURATION ms ($DURATION_SEC segundos)"
-echo "Vazão Média: $(($TOTAL_REQUISICOES / DURATION_SEC)) TPS"
+echo "Tempo total executado: $DURATION_SEC segundos"
+echo "Vazão Real do Teste:    $(($TOTAL_REQUISICOES / DURATION_SEC)) TPS"
 echo "----------------------------------------"
