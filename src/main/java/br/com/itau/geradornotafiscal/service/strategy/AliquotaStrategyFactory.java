@@ -15,12 +15,11 @@ public class AliquotaStrategyFactory {
     }
 
     public AliquotaStrategy obterEstrategia(Destinatario destinatario) {
-        // Se o destinatário ou o tipo de pessoa vier nulo, já corta o erro no início
+
         if (destinatario == null || destinatario.getTipoPessoa() == null) {
             throw new IllegalArgumentException("Dados do destinatário ou Tipo de Pessoa não podem ser nulos.");
         }
 
-        // Adicionado proteção de exaustividade aqui também
         String beanName = switch (destinatario.getTipoPessoa()) {
             case FISICA -> "calcularAliquotaPessoaFisicaService";
             case JURIDICA -> obterRegimePJ(destinatario.getRegimeTributacao());
