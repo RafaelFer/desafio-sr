@@ -2,6 +2,7 @@ package br.com.itau.geradornotafiscal.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
 import br.com.itau.geradornotafiscal.event.NotaFiscalGeradaEvent;
 import br.com.itau.geradornotafiscal.service.strategy.AliquotaStrategy;
@@ -27,13 +28,20 @@ public class GeradorNotaFiscalService {
 	}
 
 	public NotaFiscal gerarNotaFiscal(Pedido pedido) {
-		Destinatario destinatario = pedido.getDestinatario();
+		if (pedido == null || pedido.getDestinatario() == null) {
+			throw new IllegalArgumentException("Pedido ou Destinatário não podem ser nulos");
+		}
 
+		Destinatario destinatario = pedido.getDestinatario();
 		AliquotaStrategy strategy = strategyFactory.obterEstrategia(destinatario);
 		List<ItemNotaFiscal> itemNotaFiscalList = strategy.calcularAlicotaProduto(pedido);
 
 		Regiao regiao = buscarRegiao(pedido);
-		BigDecimal valorFreteComPercentual = regiao.calcularFreteComPercentual(regiao, pedido);
+
+		// Proteção: se não encontrar região, define frete como zero ou lança exceção
+		BigDecimal valorFreteComPercentual = (regiao != null)
+				? regiao.calcularFreteComPercentual(regiao, pedido)
+				: BigDecimal.ZERO;
 
 		NotaFiscal notaFiscal = emitirNotaFiscalService.emitirNotaFiscal(pedido, valorFreteComPercentual, itemNotaFiscalList);
 
@@ -42,7 +50,10 @@ public class GeradorNotaFiscalService {
 	}
 
 	private Regiao buscarRegiao(Pedido pedido) {
+		if (pedido.getDestinatario().getEnderecos() == null) return null;
+
 		return pedido.getDestinatario().getEnderecos().stream()
+				.filter(Objects::nonNull)
 				.filter(endereco -> endereco.getFinalidade() == Finalidade.ENTREGA
 						|| endereco.getFinalidade() == Finalidade.COBRANCA_ENTREGA)
 				.map(Endereco::getRegiao)

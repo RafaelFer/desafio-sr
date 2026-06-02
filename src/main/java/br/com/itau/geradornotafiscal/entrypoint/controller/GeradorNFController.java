@@ -1,13 +1,8 @@
 package br.com.itau.geradornotafiscal.entrypoint.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import br.com.itau.geradornotafiscal.model.NotaFiscal;
 import br.com.itau.geradornotafiscal.model.Pedido;
 import br.com.itau.geradornotafiscal.service.GeradorNotaFiscalService;
@@ -16,15 +11,15 @@ import br.com.itau.geradornotafiscal.service.GeradorNotaFiscalService;
 @RequestMapping("/api/pedido")
 public class GeradorNFController {
 
-	@Autowired
-	private GeradorNotaFiscalService notaFiscalService;
+	private final GeradorNotaFiscalService notaFiscalService;
+
+	public GeradorNFController(GeradorNotaFiscalService notaFiscalService) {
+		this.notaFiscalService = notaFiscalService;
+	}
 
 	@PostMapping("/gerarNotaFiscal")
 	public ResponseEntity<NotaFiscal> gerarNotaFiscal(@RequestBody Pedido pedido) {
-		
-		String mensagem = "Nota fiscal gerada com sucesso para o pedido: " + pedido.getIdPedido();
 		NotaFiscal notaFiscal = notaFiscalService.gerarNotaFiscal(pedido);
-		return new ResponseEntity<>(notaFiscal, HttpStatus.OK);
+		return ResponseEntity.status(HttpStatus.CREATED).body(notaFiscal);
 	}
-	
 }
