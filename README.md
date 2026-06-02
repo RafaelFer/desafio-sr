@@ -1,38 +1,47 @@
-# Gerador de Nota Fiscal - Aplicação para Cálculo de Tributos e Fluxos de Pós-Venda
+# Gerador de Nota Fiscal - Projeto "ME BOOSTA"
 
-Este projeto é uma aplicação Spring Boot 3 desenvolvida em Java 21 voltada para o cálculo de tributos de notas fiscais e a orquestração resiliente e assíncrona de fluxos secundários pós-venda (Estoque, Registro, Entrega e Financeiro).
+Este projeto é uma solução robusta e escalável para o processamento de notas fiscais, corrigindo problemas de performance, inconsistência de dados e falta de observabilidade do legado.
 
-## 🛠️ Tecnologias Utilizadas
+## 🚀 Soluções Implementadas
 
-- **Java 21** (Uso de Virtual Threads habilitado implicitamente por recursos de concorrência)
-- **Spring Boot 3.3.0**
-- **Spring AOP** (Aspect-Oriented Programming para interceptação de falhas)
-- **Resilience4j 2.2.0** (Mecanismo de Retry, Backoff Exponencial e Jitter)
-- **Lombok**
-- **Maven**
+- **Refatoração de Arquitetura**: Transformação de componentes *Singleton* em *Stateless*, eliminando o acúmulo de estado entre execuções.
+- **Otimização de Performance**: Estratégia de *batching* e concorrência para lidar com o gargalo de integração simulada em pedidos com alto volume de itens.
+- **Resiliência**: Implementação de *Retry Pattern* via `Resilience4j` para garantir robustez em integrações instáveis.
+- **Observabilidade**:
+    - Logs estruturados via *Logback*.
+    - Métricas de latência e saúde via *Micrometer/Actuator* (Prometheus ready).
+- **Modernização**: Atualização para **Java 21** e **Spring Boot 3.x**.
+- **DevOps**: Dockerização com *Multi-stage build* pronta para deploy em nuvem (EKS/ECS).
 
----
+## 🛠 Tecnologias
+* Java 21
+* Spring Boot 3.x
+* Maven
+* Resilience4j (Retry)
+* Micrometer & Actuator (Prometheus)
+* Docker
 
-## 🚀 Arquitetura de Resiliência e Falhas
-
-Para garantir o padrão de resiliência exigido em sistemas de missão crítica e alta disponibilidade, a aplicação implementa o padrão **Retry com Backoff Exponencial, Jitter e Fallback Individual (DLQ)**.
-
-### Características do Design:
-1. **Isolamento de Falhas:** O `@Retry` e o `@Async` foram desacoplados e alocados na entrada pública de cada `Service` de integração. Se o sistema financeiro falhar, o estoque e a entrega continuam funcionando independentemente.
-2. **Backoff Exponencial & Jitter:** Evita o efeito de manada (thundering herd) em APIs parceiras instáveis, aplicando tempos de espera progressivos combinados a uma variação aleatória.
-3. **Contingência Tardia (Dead Letter Queue):** Caso as 3 retentativas falhem, o método de `fallback` captura a exceção de forma controlada e simula a postagem do payload em filas SQS específicas de contingência para reprocessamento assíncrono futuro.
-
----
-
-## 🏃 Como Executar a Aplicação Localmente
+## 🚀 Como Executar
 
 ### Pré-requisitos
-- JDK 21 instalado e configurado nas variáveis de ambiente (`JAVA_HOME`).
-- Maven instalado (ou utilize o wrapper `./mvnw`).
+* Java 21 instalado.
+* Docker (opcional, para ambiente conteinerizado).
 
-### Passo 1: Compilar e Instalar as Dependências
-Abra o terminal na raiz do projeto e execute:
+### Execução local
+1. Clone o repositório.
+2. Compile o projeto: `mvn clean package`
+3. Execute: `java -jar target/gerador-nota-fiscal-1.0.jar`
+
+### Execução com Docker
+1. Construa a imagem: `docker build -t gerador-nota-fiscal:1.0 .`
+2. Rode o container: `docker run -p 8080:8080 gerador-nota-fiscal:1.0`
+
+## 📊 Monitoramento (Actuator)
+Após iniciar, você pode acompanhar a saúde e métricas em:
+- **Health:** `http://localhost:8080/actuator/health`
+- **Métricas:** `http://localhost:8080/actuator/prometheus`
+
+## 🧪 Testes
+Para executar a suíte de testes:
 ```bash
-mvn clean install
-
-./mvnw spring-boot:run
+mvn test

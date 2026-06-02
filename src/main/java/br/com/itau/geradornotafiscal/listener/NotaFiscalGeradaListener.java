@@ -3,6 +3,7 @@ package br.com.itau.geradornotafiscal.listener;
 import br.com.itau.geradornotafiscal.event.NotaFiscalGeradaEvent;
 import br.com.itau.geradornotafiscal.model.NotaFiscal;
 import br.com.itau.geradornotafiscal.service.integracoes.*;
+import io.micrometer.core.annotation.Timed;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ public class NotaFiscalGeradaListener {
         this.financeiroService = financeiroService;
     }
 
+    @Timed(value = "posvenda.processamento.time", description = "Tempo total de processamento do evento de pós-venda")
     @EventListener
     public void processarPosVenda(NotaFiscalGeradaEvent event) {
         NotaFiscal notaFiscal = event.getNotaFiscal();
